@@ -1,55 +1,76 @@
 document.addEventListener('DOMContentLoaded', function() {
     const navButtons = document.querySelectorAll('.nav-button');
     const panelContents = document.querySelectorAll('.panel-content');
+    
+    // Objet pour stocker le HTML original de chaque panel au chargement
+    const panelData = {};
 
-    function setActivePanel(panelId) {
-        navButtons.forEach(button => {
-            button.classList.toggle('active', button.dataset.panel === panelId);
-        });
-
-        panelContents.forEach(panel => {
-            panel.classList.toggle('active', panel.id === panelId);
-        });
-    }
-
-    navButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const panelId = this.dataset.panel;
-            setActivePanel(panelId);
-        });
+    // Sauvegarde et nettoyage initial
+    panelContents.forEach(panel => {
+        panelData[panel.id] = panel.innerHTML;
+        panel.innerHTML = ''; 
     });
 
-    // Set initial active panel
-    setActivePanel('about');
-
-    // Add typing animation to panel content
-    function typeWriter(element, text, speed = 50) {
+    // Fonction d'écriture qui gère intelligemment les balises HTML
+    function typeWriter(element, htmlContent, speed = 10) {
         let i = 0;
-        element.innerHTML = '';
+        let isTag = false;
+        let currentHTML = '';
+        element.innerHTML = ''; // On vide avant d'écrire
+
         function type() {
-            if (i < text.length) {
-                element.innerHTML += text.charAt(i);
+            if (i < htmlContent.length) {
+                let char = htmlContent.charAt(i);
+                currentHTML += char;
+                
+                // Détection de l'ouverture et fermeture de balise HTML
+                if (char === '<') isTag = true;
+                if (char === '>') isTag = false;
+
+                element.innerHTML = currentHTML;
                 i++;
-                setTimeout(type, speed);
+
+                // Si on est dans une balise ou sur un espace, on tape instantanément
+                if (isTag || char === ' ') {
+                    type(); 
+                } else {
+                    setTimeout(type, speed);
+                }
             }
         }
         type();
     }
 
-    // Apply typing animation when switching panels
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-                const panel = mutation.target;
-                if (panel.classList.contains('active')) {
-                    const content = panel.innerHTML;
-                    typeWriter(panel, content);
-                }
+    function setActivePanel(panelId) {
+        // Mise à jour des boutons
+        navButtons.forEach(button => {
+            button.classList.toggle('active', button.dataset.panel === panelId);
+        });
+
+        // Mise à jour des contenus
+        panelContents.forEach(panel => {
+            if (panel.id === panelId) {
+                panel.classList.add('active');
+                // On déclenche l'effet en utilisant le HTML sauvegardé
+                typeWriter(panel, panelData[panelId]);
+            } else {
+                panel.classList.remove('active');
+                panel.innerHTML = ''; // On vide les panels inactifs
+            }
+        });
+    }
+
+    // Écouteurs d'événements sur les boutons
+    navButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Empêche de relancer l'animation si on clique sur l'onglet déjà actif
+            if (!this.classList.contains('active')) {
+                const panelId = this.dataset.panel;
+                setActivePanel(panelId);
             }
         });
     });
 
-    panelContents.forEach(panel => {
-        observer.observe(panel, { attributes: true });
-    });
+    // Initialisation du premier panel au chargement
+    setActivePanel('about');
 });
